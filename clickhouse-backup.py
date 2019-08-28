@@ -2,58 +2,69 @@
 import getpass
 import sys, getopt
 import socket
+import yaml
+import argparse
 from clickhouse_driver import Client
 
 def main(argv):
-    srchost = 'localhost'
-    try:
-        opts, args = getopt.getopt(argv,"hf:t:",["from=","to="])
-    except getopt.GetoptError:
-        help()
-        sys.exit(2)
-    for opt, arg in opts:
-        srchost = 'localhost'
-        if opt == '-h':
-            help()
-            sys.exit()
-        elif opt in ("-f", "--from"):
-            srchost = arg
-        elif opt in ("-t", "--to"):
-            desthost = arg
+    #confFile = '/opt/clickhouse-backup/config.yml'
+    confFile = 'D:/config.yml'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", help="Config FILE. (default: '/opt/clickhouse-backup/config.yml')", action="store_true")
+    args = parser.parse_args()
+    user, password, host, port, db = confparse(confFile)
+    chalive(host, port)
 
-    user, pw = credentials()
-    chalive(srchost)
-    chrequest(pw, user, srchost)
+    queryForm(db, skipTables)
+    #chrequest(password, user, host, port, query)
 
-def chalive(srchost):
+def chalive(host, port):
     sock = socket.socket()
-    result = sock.connect_ex((srchost,9000))
-    print(result)
+    sock.connect((host,port))
     sock.close()
 
-def chrequest(pw, user, srchost):
-    client = Client(srchost,
+def chrequest(password, user, host, port, query):
+    client = Client(host,
                 user=user,
-                password=pw,
+                password=password,
+                port=port,
                 compression=True)
-    result = client.execute('SELECT 1')
-    print("RESULT: {0}: {1}".format(type(result), result))
+    result = client.execute(query)
+    #print("RESULT: {0}: {1}".format(type(result), result))
     for row in result:
-        print(" ROW: {0}: {1}".format(type(row), row))
+        #print(" ROW: {0}: {1}".format(type(row), row))
         for column in row:
-            print("  COLUMN: {0}: {1}".format(type(column), column))
-
-def credentials():
-    return (input('Enter user : '), getpass.getpass('Password : '))
+            #print("  COLUMN: {0}: {1}".format(type(column), column))
+            print(column)
 
 def help():
     help="""
     clickhouse-backup, usage:
 
-        -f - source host, default is localhost
-        -t - destination host
+        --config=FILE, -c FILE      Config FILE. (default: "/opt/clickhouse-backup/config.yml")
+        --help, -h                  show help
     """
     print (help)
 
-main(sys.argv[1:])
+def confparse(confFile):
+    with open(confFile) as file:
+        try:
+            yamlData = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            print(exc)
+    
+    host=yamlData['clickhouse']['host']
+    password=yamlData['clickhouse']['password']
+    user=yamlData['clickhouse']['username']
+    port=yamlData['clickhouse']['port']
+    db=yamlData['clickhouse']['db']
+    skipTables=yamlData['clickhouse']['skip']
 
+    return(user, password, host, port, db)
+
+def queryForm(db, skipTables):
+    print(skipTables)
+    #if skipTables 
+    query = 'SHOW TABLES FROM {}'.format(db)
+
+main(sys.argv[1:])
