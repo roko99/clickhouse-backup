@@ -7,23 +7,25 @@ import argparse
 from clickhouse_driver import Client
 
 def main(argv):
-    #confFile = '/opt/clickhouse-backup/config.yml'
-    confFile = 'D:/config.yml'
+    #conf_file = '/opt/clickhouse-backup/config.yml'
+    conf_file = 'D:/config.yml'
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", help="Config FILE. (default: '/opt/clickhouse-backup/config.yml')", action="store_true")
     args = parser.parse_args()
-    user, password, host, port, db = confparse(confFile)
-    chalive(host, port)
+    
+    user, password, host, port, db, skip_tables = conf_parse(conf_file)
+    ch_alive(host, port)
 
-    queryForm(db, skipTables)
-    #chrequest(password, user, host, port, query)
+    query = create_query(db, skip_tables)
+    print(query)
+    #ch_request(password, user, host, port, query)
 
-def chalive(host, port):
+def ch_alive(host, port):
     sock = socket.socket()
     sock.connect((host,port))
     sock.close()
 
-def chrequest(password, user, host, port, query):
+def ch_request(password, user, host, port, query):
     client = Client(host,
                 user=user,
                 password=password,
@@ -46,8 +48,8 @@ def help():
     """
     print (help)
 
-def confparse(confFile):
-    with open(confFile) as file:
+def conf_parse(conf_file):
+    with open(conf_file) as file:
         try:
             yamlData = yaml.safe_load(file)
         except yaml.YAMLError as exc:
@@ -58,13 +60,17 @@ def confparse(confFile):
     user=yamlData['clickhouse']['username']
     port=yamlData['clickhouse']['port']
     db=yamlData['clickhouse']['db']
-    skipTables=yamlData['clickhouse']['skip']
+    skip_tables=yamlData['clickhouse']['skip']
 
-    return(user, password, host, port, db)
+    return(user, password, host, port, db, skip_tables)
 
-def queryForm(db, skipTables):
-    print(skipTables)
-    #if skipTables 
-    query = 'SHOW TABLES FROM {}'.format(db)
+def create_query(db, skip_tables):
+    print(skip_tables)
+    if skip_tables:
+        query = 'SHOW TABLES FROM {} with table'.format(db)
+    else:
+        query = 'SHOW TABLES FROM {}'.format(db)
+    
+    return query
 
 main(sys.argv[1:])
